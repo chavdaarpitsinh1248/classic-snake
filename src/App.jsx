@@ -13,12 +13,18 @@ const INITIAL_SNAKE = [
 const App = () => {
   const [snake, setSnake] = useState(INITIAL_SNAKE);
   const [direction, setDirection] = useState("RIGHT");
+  const directionRef = useRef(direction); // <-- ref for latest direction
   const [food, setFood] = useState({ x: 12, y: 10 });
   const [status, setStatus] = useState("idle"); // 'idle','running','paused','gameover'
   const [score, setScore] = useState(0);
   const highScore = useRef(Number(localStorage.getItem("snakeHighScore") || 0));
   const speed = useRef(200); // milliseconds
   const gameLoopRef = useRef();
+
+  // Keep ref updated whenever direction changes
+  useEffect(() => {
+    directionRef.current = direction;
+  }, [direction]);
 
   // Generate new food at random empty cell
   const generateFood = (snakeCells) => {
@@ -37,7 +43,7 @@ const App = () => {
     setSnake((prev) => {
       const head = prev[0];
       let newHead;
-      switch (direction) {
+      switch (directionRef.current) { // <-- use latest direction
         case "UP": newHead = { x: head.x, y: head.y - 1 }; break;
         case "DOWN": newHead = { x: head.x, y: head.y + 1 }; break;
         case "LEFT": newHead = { x: head.x - 1, y: head.y }; break;
@@ -45,7 +51,7 @@ const App = () => {
         default: newHead = head;
       }
 
-      // Check collisions
+      // Collision detection
       if (
         newHead.x < 0 ||
         newHead.x >= GRID_SIZE ||
@@ -60,7 +66,7 @@ const App = () => {
 
       let newSnake = [newHead, ...prev];
 
-      // Check food collision
+      // Food collision
       if (newHead.x === food.x && newHead.y === food.y) {
         setScore((s) => s + 1);
         if (score + 1 > highScore.current) {
@@ -68,18 +74,16 @@ const App = () => {
           localStorage.setItem("snakeHighScore", highScore.current);
         }
         setFood(generateFood(newSnake));
-
-        // Increase speed gradually, capped
-        speed.current = Math.max(50, speed.current - 5);
+        speed.current = Math.max(50, speed.current - 5); // gradually increase speed
       } else {
-        newSnake.pop(); // Remove tail if no food
+        newSnake.pop(); // remove tail if no food
       }
 
       return newSnake;
     });
   };
 
-  // Game loop using requestAnimationFrame
+  // Game loop
   const gameLoop = () => {
     moveSnake();
     gameLoopRef.current = setTimeout(() => {
@@ -98,16 +102,16 @@ const App = () => {
     const handleKey = (e) => {
       if (status !== "running") return;
       switch (e.key) {
-        case "ArrowUp": if (direction !== "DOWN") setDirection("UP"); break;
-        case "ArrowDown": if (direction !== "UP") setDirection("DOWN"); break;
-        case "ArrowLeft": if (direction !== "RIGHT") setDirection("LEFT"); break;
-        case "ArrowRight": if (direction !== "LEFT") setDirection("RIGHT"); break;
+        case "ArrowUp": if (directionRef.current !== "DOWN") setDirection("UP"); break;
+        case "ArrowDown": if (directionRef.current !== "UP") setDirection("DOWN"); break;
+        case "ArrowLeft": if (directionRef.current !== "RIGHT") setDirection("LEFT"); break;
+        case "ArrowRight": if (directionRef.current !== "LEFT") setDirection("RIGHT"); break;
         default: break;
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [direction, status]);
+  }, [status]);
 
   const startGame = () => {
     setSnake(INITIAL_SNAKE);
